@@ -43,6 +43,28 @@ def load_pdf_text(pdf_path):
         text += page.extract_text() + "\n"
     return text
 
+## Split text into overlapping chunks of ~chunk_size characters
+def chunk_text(text, chunk_size = 500, overlap = 50):
+    chunks = []
+    start = 0
+    while start < len(text):
+        end = start + chunk_size
+        chunks.append(text[start:end])
+        start += chunk_size - overlap # overlap keeps context between chunks or else we can lose context or meaning
+    return chunks
+
+data_folder = "data"
+documents = []
+
+for filename in os.listdir(data_folder):
+    if filename.endswith(".pdf"):
+        filepath = os.path.join(data_folder, filename)
+        raw_text = load_pdf_text(filepath)
+        doc_chunks = chunk_text(raw_text)
+        documents.extend(doc_chunks)
+
+print(f"Loaded {len(documents)} document chunks from PDFs in '{data_folder}' folder.")
+     
 # ---------------------------------------------------------------------------
 # 2. Embed documents locally (no API calls, runs on CPU)
 # ---------------------------------------------------------------------------
@@ -87,7 +109,7 @@ Answer:"""
 # 6. Run it
 # ---------------------------------------------------------------------------
 if __name__ == "__main__":
-    query = "What does SHAP do?"
+    query = "How is SHAP used to explain credit risk model predictions?"
     chunks = retrieve(query)
     print("Retrieved context:")
     for c in chunks:
