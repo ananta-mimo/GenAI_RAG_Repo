@@ -21,13 +21,27 @@ import ollama
 # ---------------------------------------------------------------------------
 # 1. Sample documents (replace with your own PDFs, notes, or dataset later)
 # ---------------------------------------------------------------------------
-documents = [
-    "XGBoost is a gradient boosting framework that uses decision trees as base learners.",
-    "SHAP values explain individual predictions by attributing contribution to each feature.",
-    "A confusion matrix summarizes classification performance across true and predicted labels.",
-    "Uncertainty quantification methods include conformal prediction and Bayesian approaches.",
-    "Streamlit is a Python framework for building interactive data apps quickly.",
-]
+# documents = [
+#     "XGBoost is a gradient boosting framework that uses decision trees as base learners.",
+#     "SHAP values explain individual predictions by attributing contribution to each feature.",
+#     "A confusion matrix summarizes classification performance across true and predicted labels.",
+#     "Uncertainty quantification methods include conformal prediction and Bayesian approaches.",
+#     "Streamlit is a Python framework for building interactive data apps quickly.",
+# ]
+
+# ---------------------------------------------------------------------------
+# 1. Load PDFs and split into chunks
+# ---------------------------------------------------------------------------
+
+import os
+from pypdf import PdfReader
+
+def load_pdf_text(pdf_path):
+    reader = PdfReader(pdf_path)
+    text = ""
+    for page in reader.pages:
+        text += page.extract_text() + "\n"
+    return text
 
 # ---------------------------------------------------------------------------
 # 2. Embed documents locally (no API calls, runs on CPU)
