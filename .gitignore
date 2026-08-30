@@ -6,7 +6,7 @@ data/
 *.parquet
 *.feather
 
-
+_others/
 # ── Outputs ───────────────────────────────────────────────────────────────────
 
 outputs/reports/
