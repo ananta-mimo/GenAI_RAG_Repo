@@ -17,6 +17,7 @@ import faiss
 import numpy as np
 from sentence_transformers import SentenceTransformer
 import ollama
+import re
 
 # ---------------------------------------------------------------------------
 # 1. Sample documents (replace with your own PDFs, notes, or dataset later)
@@ -106,6 +107,58 @@ Answer:"""
     return response["message"]["content"]
 
 # ---------------------------------------------------------------------------
+# 7. Simple faithfulness check (word-overlap based)
+# ---------------------------------------------------------------------------
+
+def clean_words(text, stopwords):
+    words = re.findall(r"[a-zA-Z]+", text.lower())
+    return {word for word in words if word not in stopwords and len(word) > 2}
+
+def check_faithfulness(answer, retrieved_chunks):
+    # Count how many words in the answer are present in the retrieved chunks
+    
+    """
+    Rough faithfulness score: what fraction of meaningful words in the
+    generated answer also appear somewhere in the retrieved context.
+    This is a simple heuristic, not a rigorous metric, but it's useful
+    for flagging answers that may contain unsupported content.
+    """
+    stopwords = {
+        "the", "is", "a", "an", "of", "to", "and", "in", "on", "for",
+        "this", "that", "it", "as", "by", "with", "are", "be", "or",
+        "from", "these", "its", "was", "were", "at", "into", "which"
+    }
+    
+    context_text = " ".join(retrieved_chunks)
+    context_words = clean_words(context_text, stopwords)
+    answer_words = clean_words(answer, stopwords)
+
+    
+    if not answer_words:
+        return 0.0  # Avoid division by zero if answer has no meaningful words
+    
+    grounded_words = answer_words & context_words
+    faithfulness_score = len(grounded_words) / len(answer_words)
+    return round(faithfulness_score, 2)
+
+def debug_word_overlap(answer, retrieved_chunks):
+    stopwords = {
+        "the", "is", "a", "an", "of", "to", "and", "in", "on", "for",
+        "this", "that", "it", "as", "by", "with", "are", "be", "or",
+        "from", "these", "its", "was", "were", "at", "into", "which"
+    }
+    def clean_words(text):
+        words = re.findall(r"[a-zA-Z]+", text.lower())
+        return {w for w in words if w not in stopwords and len(w) > 2}
+
+    context_words = clean_words(" ".join(retrieved_chunks))
+    answer_words = clean_words(answer)
+    unsupported = answer_words - context_words
+
+    print("Words in answer NOT found in retrieved context:")
+    print(sorted(unsupported))
+
+# ---------------------------------------------------------------------------
 # 6. Run it
 # ---------------------------------------------------------------------------
 if __name__ == "__main__":
@@ -118,3 +171,8 @@ if __name__ == "__main__":
     answer = generate_answer(query, chunks)
     print("\nGenerated answer:")
     print(answer)
+    
+    score = check_faithfulness(answer, chunks)
+    print(f"\nFaithfulness score: {score} (fraction of answer's key words found in retrieved context)")
+    
+    debug_word_overlap(answer, chunks)  
