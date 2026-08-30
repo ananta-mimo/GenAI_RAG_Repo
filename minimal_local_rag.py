@@ -110,9 +110,40 @@ Answer:"""
 # 7. Simple faithfulness check (word-overlap based)
 # ---------------------------------------------------------------------------
 
-def clean_words(text, stopwords):
+
+
+# def simple_stem(word):
+#     """
+#     A very simple stemming function that removes common suffixes.
+#     This is not a full-fledged stemmer, but it helps with basic word matching.
+#     """
+#     suffixes = ["ing", "ed", "s", "es", "ly", "tion", "ment", "ness", "able", "ible", "al", "er", "or", "ist", "ity", "ous", "ive", "ize", "ise"]
+    
+#     changed = True
+#     while changed:
+#         changed = False
+#         for suffix in suffixes:
+#             if word.endswith(suffix) and len(word) > len(suffix) + 2:
+#                 word = word[:-len(suffix)]
+#                 changed = True
+#                 break
+
+#     return word
+
+from nltk.stem import PorterStemmer
+stemmer = PorterStemmer()
+
+def simple_stem(word):
+    return stemmer.stem(word)
+
+STOPWORDS = {
+    "the", "is", "a", "an", "of", "to", "and", "in", "on", "for",
+    "this", "that", "it", "as", "by", "with", "are", "be", "or",
+    "from", "these", "its", "was", "were", "at", "into", "which"
+}
+def clean_words(text):
     words = re.findall(r"[a-zA-Z]+", text.lower())
-    return {word for word in words if word not in stopwords and len(word) > 2}
+    return {simple_stem(word) for word in words if word not in STOPWORDS and len(word) > 2}
 
 def check_faithfulness(answer, retrieved_chunks):
     # Count how many words in the answer are present in the retrieved chunks
@@ -123,15 +154,11 @@ def check_faithfulness(answer, retrieved_chunks):
     This is a simple heuristic, not a rigorous metric, but it's useful
     for flagging answers that may contain unsupported content.
     """
-    stopwords = {
-        "the", "is", "a", "an", "of", "to", "and", "in", "on", "for",
-        "this", "that", "it", "as", "by", "with", "are", "be", "or",
-        "from", "these", "its", "was", "were", "at", "into", "which"
-    }
+
     
     context_text = " ".join(retrieved_chunks)
-    context_words = clean_words(context_text, stopwords)
-    answer_words = clean_words(answer, stopwords)
+    context_words = clean_words(context_text, STOPWORDS)
+    answer_words = clean_words(answer, STOPWORDS)
 
     
     if not answer_words:
@@ -142,21 +169,15 @@ def check_faithfulness(answer, retrieved_chunks):
     return round(faithfulness_score, 2)
 
 def debug_word_overlap(answer, retrieved_chunks):
-    stopwords = {
-        "the", "is", "a", "an", "of", "to", "and", "in", "on", "for",
-        "this", "that", "it", "as", "by", "with", "are", "be", "or",
-        "from", "these", "its", "was", "were", "at", "into", "which"
-    }
-    def clean_words(text):
-        words = re.findall(r"[a-zA-Z]+", text.lower())
-        return {w for w in words if w not in stopwords and len(w) > 2}
 
-    context_words = clean_words(" ".join(retrieved_chunks))
-    answer_words = clean_words(answer)
+    context_words = clean_words(" ".join(retrieved_chunks), STOPWORDS)
+    answer_words = clean_words(answer, STOPWORDS)
     unsupported = answer_words - context_words
 
     print("Words in answer NOT found in retrieved context:")
     print(sorted(unsupported))
+    
+
 
 # ---------------------------------------------------------------------------
 # 6. Run it
