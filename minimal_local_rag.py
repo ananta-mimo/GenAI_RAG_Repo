@@ -87,6 +87,20 @@ def retrieve(query, k=2):
     distances, indices = index.search(query_embedding, k)
     return [documents[i] for i in indices[0]]
 
+def inspect_retrieval(query, k=2):
+    """
+    Quick debug helper: shows the exact retrieved chunks for a single query,
+    so you can check whether a wrong/weak answer traces back to bad retrieval
+    or the LLM adding unsupported claims on top of good retrieval.
+    """
+    chunks = retrieve(query, k=k)
+    print(f"Query: {query}\n")
+    for i, c in enumerate(chunks, 1):
+        print(f"--- Chunk {i} ---")
+        print(c)
+        print()
+    return chunks
+
 # ---------------------------------------------------------------------------
 # 5. Generate an answer using a local LLM via Ollama
 # ---------------------------------------------------------------------------
@@ -157,8 +171,8 @@ def check_faithfulness(answer, retrieved_chunks):
 
     
     context_text = " ".join(retrieved_chunks)
-    context_words = clean_words(context_text, STOPWORDS)
-    answer_words = clean_words(answer, STOPWORDS)
+    context_words = clean_words(context_text)
+    answer_words = clean_words(answer)
 
     
     if not answer_words:
@@ -170,30 +184,60 @@ def check_faithfulness(answer, retrieved_chunks):
 
 def debug_word_overlap(answer, retrieved_chunks):
 
-    context_words = clean_words(" ".join(retrieved_chunks), STOPWORDS)
-    answer_words = clean_words(answer, STOPWORDS)
+    context_words = clean_words(" ".join(retrieved_chunks))
+    answer_words = clean_words(answer)
     unsupported = answer_words - context_words
 
     print("Words in answer NOT found in retrieved context:")
     print(sorted(unsupported))
     
+# ---------------------------------------------------------------------------
+# 8. Evaluation question set
+# ---------------------------------------------------------------------------
+eval_questions = [
+    "How is SHAP used to explain credit risk model predictions?",
+    "What is the difference between interpretability and explainability?",
+    "How does SHAP relate to cooperative game theory?",
+    "What is a SHAP dependence plot used for?",
+    "How does LIME differ from SHAP?",
+    # add 4-5 more based on what's actually in your 3 PDFs
+]
 
+def run_eval(questions):
+    results = []
+    for q in questions:
+        chunks = retrieve(q)
+        answer = generate_answer(q, chunks)
+        score = check_faithfulness(answer, chunks)
+        results.append({
+            "question": q,
+            "answer": answer,
+            "faithfulness": score
+        })
+        print(f"\nQ: {q}")
+        print(f"A: {answer}")
+        print(f"Faithfulness: {score}")
+    return results
 
 # ---------------------------------------------------------------------------
 # 6. Run it
 # ---------------------------------------------------------------------------
 if __name__ == "__main__":
-    query = "How is SHAP used to explain credit risk model predictions?"
-    chunks = retrieve(query)
-    print("Retrieved context:")
-    for c in chunks:
-        print(" -", c)
+    # query = "How is SHAP used to explain credit risk model predictions?"
+    # chunks = retrieve(query)
+    # print("Retrieved context:")
+    # for c in chunks:
+    #     print(" -", c)
 
-    answer = generate_answer(query, chunks)
-    print("\nGenerated answer:")
-    print(answer)
+    # answer = generate_answer(query, chunks)
+    # print("\nGenerated answer:")
+    # print(answer)
     
-    score = check_faithfulness(answer, chunks)
-    print(f"\nFaithfulness score: {score} (fraction of answer's key words found in retrieved context)")
+    # score = check_faithfulness(answer, chunks)
+    # print(f"\nFaithfulness score: {score} (fraction of answer's key words found in retrieved context)")
     
-    debug_word_overlap(answer, chunks)  
+    # debug_word_overlap(answer, chunks)
+    results = run_eval(eval_questions)
+    
+    print("\n\n===== Debugging LIME vs SHAP retrieval =====")
+    inspect_retrieval("How does LIME differ from SHAP?")
